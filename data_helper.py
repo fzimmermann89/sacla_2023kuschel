@@ -65,16 +65,22 @@ def getHighTag(bl: int = 3, run: int = -1):
 
 
 class LazyImage:
-    def __init__(self, tag, obj, buff):
+    def __init__(self, tag, obj, buff, dark, ev_per_adu):
         self._tag = tag
         self._obj = obj
         self._buff = buff
         self._data = None
+        self._dark = dark
+        self._ev_per_adu = ev_per_adu
 
     def get(self):
         if self._data is None:
             self._obj.collect(self._buff, self._tag)
-            self._data = self._buff.read_det_data(0)
+            data = self._buff.read_det_data(0)
+            if self._dark is not None:
+                data = data - self._dark
+                self._dark = None
+            self._data = self._ev_per_adu * data
         return self._data
 
     def __array__(self):
@@ -85,7 +91,7 @@ class LazyImage:
 
 
 class Detector:
-    def __init__(self, detID: str, bl: int = 3, run: int = -1, lazy=True):
+    def __init__(self, detID: str, bl: int = 3, run: int = -1, dark: np.ndarray = None, ev_per_adu: float = 1.0, lazy=True):
         """
         A sacla detector at a specific run.
 
@@ -94,6 +100,8 @@ class Detector:
         detID: 'MPCCD-1N0-M06-002' or similiar
         bl: beamline number
         run: run number. if -1, use newest
+        dark: an numpy array (in ADU) to subtract or None
+        ev_per_adu: images is scaled by this factor before returning
         lazy: load image only on access. might not be threadsafe
         """
         if run < 0:
@@ -101,6 +109,8 @@ class Detector:
         self._taglist = dbpy.read_taglist_byrun(bl, run)
         self._obj = stpy.StorageReader(detID, bl, (run,))
         self._buff = stpy.StorageBuffer(self._obj)
+        self._ev_per_adu = ev_per_adu
+        self._dark = dark
         self._detID = detID
         self._run = run
         self.lazy = lazy
@@ -114,9 +124,12 @@ class Detector:
     def __getitem__(self, idx):
         tag = self._taglist[idx]
         if self.lazy:
-            return LazyImage(tag, self._obj, self._buff)
+            return LazyImage(tag, self._obj, self._buff, dark=self._dark, ev_per_adu=self._ev_per_adu)
         self._obj.collect(self._buff, tag)
         data = self._buff.read_det_data(0)
+        if self._dark is not None:
+            data = data - self._dark
+        data = self._ev_per_adu * data
         return data
 
 
@@ -191,12 +204,7 @@ class DBReader:
                 key, calibrate = info, lambda x: x
             elif isinstance(info, (list, tuple)) and len(info) == 2 and isinstance(info[0], str) and callable(info[1]):
                 key, calibrate = info
-            elif (
-                isinstance(info, (list, tuple))
-                and len(info) == 2
-                and isinstance(info[0], str)
-                and isinstance(info[1], float)
-            ):
+            elif isinstance(info, (list, tuple)) and len(info) == 2 and isinstance(info[0], str) and isinstance(info[1], float):
                 key = info[0]
                 calibrate = lambda x: x * info[1]
             else:
@@ -221,31 +229,43 @@ class DBReader:
 
 
 class Run:
-    def __init__(self, detector_keys:Dict, database_keys:Dict, bl:int=3, run:int=-1):
+    def __init__(
+        self, detector_keys: Dict, database_keys: Dict, detector_ev_per_adu: Dict = None, detector_dark_files: Dict = None, bl: int = 3, run: int = -1, lazy:bool=False
+    ):
         """
         A Sacla run
-        
+
         Parameters
         -------
         detector_keys: dict of name:sacla_internal_name of mpccd detectors
         database_keys: dict of parameters to get from database, see DBReader for format
         bl: beamline
         run: run to use. if negative, relative from newest
-        
+        lazy: load det images lazyly on first access
+
         Usage
         ------
-        shot=Run(...)[0] 
-        or 
+        shot=Run(...)[0]
+        or
             for shot in Run(...):
                 ...
-        
+
         each shot is a namedtuple.
         """
-        self.detectors = {name: Detector(detID, bl, run, lazy=True) for name, detID in detector_keys.items()}
+        self.detectors = {}
+        for name, detID in detector_keys.items():
+            if detector_dark_files is not None and name in detector_dark_files and detector_dark_files[name] is not None:
+                dark = np.load(detector_dark_files[name])
+            else:
+                dark = None
+            if detector_ev_per_adu is not None and name in detector_ev_per_adu and detector_ev_per_adu[name] is not None:
+                ev_per_adu = detector_ev_per_adu[name]
+            else:
+                ev_per_adu = 1.0
+            det = Detector(detID, bl, run, dark, ev_per_adu, lazy=lazy)
+            self.detectors[name] = det
         self.db = DBReader(database_keys, bl, run)
-        self._returntype = namedtuple(
-            "Shot", field_names=list(self.detectors.keys()) + list(self.db._returntype._fields)
-        )
+        self._returntype = namedtuple("Shot", field_names=list(self.detectors.keys()) + list(self.db._returntype._fields))
 
     def __getitem__(self, idx):
         detdata = {name: det[idx] for name, det in self.detectors.items()}
