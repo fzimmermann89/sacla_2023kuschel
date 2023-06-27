@@ -697,7 +697,7 @@ class MedianEstimator(QuantileEstimator):
 
 class BinSorter(Accumulator):
 
-    def __init__(self, bin_edges, binaccumulatorcls=Counter, /, kwargs={},
+    def __init__(self, bin_edges, binaccumulatorcls=Counter, kwargs={},
                  key=lambda x: x, datakey=lambda x: x):
         '''
         Sorts objects into accumulators for each bin. The simplest use case is to
@@ -762,7 +762,7 @@ class BinSorter(Accumulator):
 
 class DynamicBinSorter(BinSorter):
 
-    def __init__(self, nbins, binaccumulatorcls=Counter, /, kwargs={},
+    def __init__(self, nbins, binaccumulatorcls=Counter, kwargs={},
                  key=lambda x: x, datakey=lambda x: x):
         '''
         Same as the `BinSorter`, but the `bin_edges` are dynamically adjusted using the

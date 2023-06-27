@@ -69,11 +69,13 @@ class LazyImage:
         self._tag = tag
         self._obj = obj
         self._buff = buff
+        self._data = None
 
     def get(self):
-        self._obj.collect(self._buff, self._tag)
-        data = self._buff.read_det_data(0)
-        return data
+        if self._data is None:
+            self._obj.collect(self._buff, self._tag)
+            self._data = self._buff.read_det_data(0)
+        return self._data
 
     def __array__(self):
         return self.get()
