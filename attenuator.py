@@ -1,3 +1,5 @@
+# zimmf for beamtime kuschel2023
+
 import numpy as np
 def attenuator_eh5_silicon_thickness(pulses):
     """

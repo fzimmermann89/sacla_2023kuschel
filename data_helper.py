@@ -1,3 +1,5 @@
+# zimmf, kuschel2023
+
 import dbpy
 import stpy
 import numpy as np
@@ -5,17 +7,49 @@ import re
 from typing import List, Dict
 from collections import namedtuple
 
-
+### Basic Helper functions
 def getNewestRun(bl: int = 3):
     """
     returns newest run number for the beamline
     Parameters
     ----------
-    input: beamline as integer
+    bl: beamline as integer
 
     output: runnumber as integer
     """
     return dbpy.read_runnumber_newest(bl)
+
+
+def getTags(bl=3, run=-1):
+    """
+    get a list of tags (i.e. shot identifiers) for a run
+    
+    Returns
+    ------
+    list
+    """
+    if run < 0:
+            run = getNewestRun(bl) + 1 + run
+    
+    return dbpy.read_taglist_byrun(bl, run)
+
+
+def getHighTag(bl: int = 3, run: int = -1):
+    """
+    returns high tag value for particular beamline and run number
+
+    Parameters
+    ----------
+    bl: beamline as integer
+    run: -1 to use newest
+
+    Returns
+    ------
+    high tag value as integer
+    """
+    if run < 0:
+        run = getNewestRun(bl) + 1 + run
+    return dbpy.read_hightagnumber(bl, run)
 
 
 def getDetectorList(bl: int = 3, run: int = -1):
@@ -28,10 +62,12 @@ def getDetectorList(bl: int = 3, run: int = -1):
     bl: beamline as integer
     run: -1 to use newest
 
-    output: tuple list of detector names
+    Returns
+    ------
+    tuple list of detector names
     """
-    if run == -1:
-        run = getNewestRun(bl)
+    if run < 0:
+        run = getNewestRun(bl) + 1 + run
     return dbpy.read_detidlist(bl, getNewestRun(bl))
 
 
@@ -48,20 +84,73 @@ def getEquipmentList():
     return dbpy.read_equiplist()
 
 
-def getHighTag(bl: int = 3, run: int = -1):
+def searchEquipmentList(pattern: str):
     """
-    returns high tag value for particular beamline and run number
+    searches for a regex pattern in the equipment list
+    and returns all matches.
 
     Parameters
-    ----------
-    bl: beamline as integer
-    run: -1 to use newest
+    ------
+    pattern: regex pattern
 
-    output: high tag value as integer
+    Returns
+    ------
+    list of matching strings
+
+
+    """
+    equipment = getEquipmentList()
+    pattern = re.compile(pattern)
+    matches = [equip for equip in equipment if pattern.search(equip)]
+    return matches
+
+
+
+
+
+def getDetectorImage(detID:str, taglist=None, bl=3, run=-1):
+    """
+    reads one or multiple detector images
+    Parameters
+    ---------
+    detID: name of detector
+    taglist: list of tags to get images for, single tag, or None (all images of run)
+    bl: beamline
+    run: run nr, negative is relative to newest
     """
     if run < 0:
-        run = getNewestRun(bl) + 1 + run
-    return dbpy.read_hightagnumber(bl, run)
+            run = getNewestRun(bl) + 1 + run
+    if taglist is None:
+        taglist = getTags(bl=3, run=-1)
+    if isinstance(taglist, int):
+        taglist = [taglist]
+    
+    obj = stpy.StorageReader(detID, bl, (run,))
+    buff = stpy.StorageBuffer(obj)
+    obj.collect(buff, stag)
+    data = buff.read_det_data(0)
+    
+    return data
+
+
+
+def getEquip(equipment_name: str, tags: List, hightag):
+    """
+    returns data from detector for specified tags, hightag
+
+    Parameters
+    ------
+        equipment_name: equipment name
+        list: tuple of integer values
+        hightag: high tag integer value
+
+    Returns
+    -------
+    detector value accross tags as float
+    """
+    equipVals = dbpy.read_syncdatalist_float(equip, hightag, tags)
+
+
 
 
 class LazyImage:
@@ -89,6 +178,9 @@ class LazyImage:
     def __repr__(self):
         return f"LazyImage at tag {self._tag}.\n   Use np.array(lazyimage) or lazyimage.get() to get the data."
 
+    
+    
+##### More fancy classes ######
 
 class Detector:
     def __init__(self, detID: str, bl: int = 3, run: int = -1, dark: np.ndarray = None, ev_per_adu: float = 1.0, lazy=True):
@@ -132,48 +224,7 @@ class Detector:
         data = self._ev_per_adu * data
         return data
 
-
-def searchEquipmentList(pattern: str):
-    """
-    searches for a regex pattern in the equipment list
-    and returns all matches.
-
-    Parameters
-    ------
-    pattern: regex pattern
-
-    Returns
-    ------
-    list of matching strings
-
-
-    """
-    equipment = getEquipmentList()
-    pattern = re.compile(pattern)
-    matches = [equip for equip in equipment if pattern.search(equip)]
-    return matches
-
-
-def getEquip(equipment_name: str, tags: List, hightag):
-    """
-    returns data from detector for specified tags, hightag
-
-    Parameters
-    ------
-        equipment_name: equipment name
-        list: tuple of integer values
-        hightag: high tag integer value
-
-    Returns
-    -------
-    detector value accross tags as float
-    """
-    if run == -1:
-        run = getNewestRun(bl)
-    hightag = getHighTag(bl, run)
-    equipVals = dbpy.read_syncdatalist_float(equip, hightag, tags)
-
-
+    
 class DBReader:
     def __init__(self, keys: Dict, bl: int = 3, run: int = -1):
         """
