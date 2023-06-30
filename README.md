@@ -15,7 +15,7 @@ This has been written for the Kuschel2023 beamtime, but is quite general and can
     Here are some wrapper functions to get the latest run, time of runs, tags, detector images, daq-data, etc.
   
   Of special interest are 
-    - Detector: A Wrapper Object for Imaging Detector
+    - Detector: A Wrapper Object for Imaging Detector. Applies ADU to EV conversion, correction by latest (prepared) dark, optional lazy loading of images etc.
     - DBReader: A Wrapper for reading DAQ data such as motor positions, shutter etc.
     - Run: An object representing a particular run with some imaging detectors and important information from the database. Gets the information defined in the exp_config as input
     A run is iterable and indexable to get the information for a single "Shot"
