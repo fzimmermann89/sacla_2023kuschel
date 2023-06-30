@@ -1,6 +1,7 @@
-# zimmf for beamtime kuschel2023
+# felix zimmermann, github.com/fzimmermann89 for beamtime kuschel2023
 
 import numpy as np
+
 def attenuator_eh5_silicon_thickness(pulses):
     """
     Converts pulses into Silicon thickness in m.

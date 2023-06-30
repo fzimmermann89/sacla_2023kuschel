@@ -1,4 +1,5 @@
 #https://github.com/skuschel/generatorpipeline/blob/752faa7e3e0396445971558e411a1e1b3e75616c/generatorpipeline/accumulators.py
+# modified to work with py3.7
 
 # Copyright (C) 2020-2023 Stephan Kuschel
 #               2022 Robert Radloff

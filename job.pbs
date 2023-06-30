@@ -1,0 +1,15 @@
+
+
+#PBS -S /bin/bash
+#PBS -q serial
+#PBS -l nodes=1
+#PBS -l walltime=1:00:00
+
+## run with qsub job.pbs -J STARTRUN-ENDRUN:STEPRUN 
+##start and end are inclusive / inclusive
+source /home/blstaff/SACLAtool_py3.7
+module load SACLA_tool/1.0.0
+module load python/SACLA_python-3.7/offline
+
+# adjust path to script here
+python /work/kuschel/2023TRsHardXray/scratch/ulmer/analyse/analyse.py $PBS_ARRAY_INDEX
