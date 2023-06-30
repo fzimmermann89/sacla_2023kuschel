@@ -4,7 +4,8 @@ if not otherwise marked (c) by Felix Zimmermann for PTB Berlin
 
 
 ## Kuschel2023 Beamtime
-This has been written for the Kuschel2023 beamtime, but is quite general and can easily be adapeted to other imaging beamtimes at SACLA BL3 and similiar.
+This has been written for the Kuschel2023 beamtime. Most beamtime specific plots etc have been removed if not necessary for general understanding.
+It is quite general and can easily be adapeted to other imaging beamtimes at SACLA BL3 and similiar.
 
 ## Overview  (WIP)
 # exp_config.py:
